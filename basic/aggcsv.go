@@ -17,10 +17,10 @@ import (
 var filename = flag.String("f", "REQUIRED", "source CSV file")
 var numChannels = flag.Int("c", 4, "num of parallel channels")
 
-const BulkCount = 500
-const AggColNo = 1
-
-//var bufferedChannels = flag.Bool("b", false, "enable buffered channels")
+const (
+	BulkCount = 500
+	AggColNo  = 1
+)
 
 func main() {
 
@@ -49,8 +49,8 @@ func main() {
 		records := make([][]string, 0, BulkCount)
 		isLast := false
 
+		// バルク単位でCSVを読み込む
 		for bi := 0; bi < BulkCount; bi++ {
-
 			record, err := reader.Read()
 			if err == io.EOF {
 				isLast = true
@@ -66,62 +66,53 @@ func main() {
 		go func(r [][]string, i int) {
 			defer wg.Done()
 			ch <- processData(i, r)
-			// processData(i, r)
-			// ch <- r
 		}(records, i)
 		if isLast {
 			break
 		}
-		//		fmt.Printf("\rgo %d", i)
 	}
-
 	// closer
 	go func() {
 		wg.Wait()
 		close(ch)
 	}()
 
-	// print channel results (necessary to prevent exit programm before)
-	sum_map := map[string]int{}
-	j := 0
+	// チャネルからクラスタ化された集計結果を集める
+
+	sumMap := map[string]int{}
 	for rec := range ch {
-		j++
-		// fmt.Printf("\r\t\t\t\t | done %d ", j, rec)
 		for mk, mv := range rec {
-			sum_map[mk] += mv
+			sumMap[mk] += mv
 		}
 	}
 
-	// fmt.Println(sum_map)
+	// 集計結果をarray化してソートする
+
 	results := List{}
-	for k, v := range sum_map {
+	for k, v := range sumMap {
 		e := Entry{k, v}
 		results = append(results, e)
 	}
 
-	result_time := fmt.Sprintf("\n%2fs", time.Since(start).Seconds())
+	resuleTime := fmt.Sprintf("\n%2fs", time.Since(start).Seconds())
 	sort.Sort(results)
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10 && i < len(results); i++ {
 		fmt.Println(results[i])
 	}
-	fmt.Println(result_time)
+	fmt.Println(resuleTime)
 }
 
 func processData(i int, r [][]string) map[string]int {
-	// time.Sleep(time.Duration(1000+rand.Intn(8000)) * time.Millisecond)
 	var m = map[string]int{}
-	// fmt.Printf("\r\t\t| proc %d", i)
 	for _, rec := range r {
-		// fmt.Println(rec)
 		m[rec[AggColNo]]++
 	}
-
-	// for _, wd := range r {	m[wd]++	}
 	return m
 }
 
 // for sort
+
 type Entry struct {
 	name  string
 	value int
