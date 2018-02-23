@@ -33,9 +33,9 @@ type (
 
 const (
 	aggColNo   = 1
-	bulkCount  = 500
-	maxWorkers = 10
-	maxQueues  = 20000
+	bulkCount  = 5000
+	maxWorkers = 4
+	maxQueues  = 10000
 )
 
 // NewDispatcher returns a pointer of Dispatcher.
