@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	aggColNo   = 1
-	bulkCount  = 5000
-	maxWorkers = 4
-	maxQueues  = 10000
+	aggColNo  = 1
+	bulkCount = 5000
+	//maxWorkers = 4
+	maxQueues = 10000
 )
 
 func processData(r [][]string) map[string]int {
@@ -54,8 +54,8 @@ func main() {
 	reader.FieldsPerRecord = -1 // CSVの列数が足りない行を無視する
 
 	jobCh := make(chan [][]string, maxQueues)
-	workerCh := make(chan bool, maxWorkers)
-	sinkCh := make(chan map[string]int, maxWorkers)
+	workerCh := make(chan bool, *numChannels)
+	sinkCh := make(chan map[string]int, *numChannels)
 	//quitChan := make(chan bool)
 	go func() {
 		defer close(jobCh)
