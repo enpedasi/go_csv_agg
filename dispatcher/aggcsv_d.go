@@ -59,13 +59,15 @@ func main() {
 	//quitChan := make(chan bool)
 	go func() {
 		defer close(jobCh)
-		for {
+		running := true
+		for running {
 			records := make([][]string, 0, bulkCount)
 			// バルク単位でCSVを読み込む
 			for bi := 0; bi < bulkCount; bi++ {
 				record, err := reader.Read()
 				if err == io.EOF {
-					return
+					running = false
+					break
 				} else if err != nil {
 					fmt.Println("file read error : ", err)
 					panic(err)
