@@ -1,53 +1,49 @@
 package main
 
 import (
-	"encoding/csv"
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
-	"io"
+	"log"
 	"os"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 )
 
-const (
-	aggColNo  = 1
-	bulkCount = 5000
-	//maxWorkers = 4
-	maxQueues = 10000
-)
-
-func processData(r [][]string) map[string]int {
-	var m = map[string]int{}
-	for _, rec := range r {
-		m[rec[aggColNo]]++
-	}
-	// log.Printf("Goroutine cocurrency:%d  mapsize=%d", runtime.NumGoroutine(), len(m))
-	return m
-}
-
-var filename = flag.String("f", "REQUIRED", "source CSV file")
-var numChannels = flag.Int("c", 4, "num of parallel channels")
-
 func main() {
+	var fname string
+	var concurrency int
+	flag.StringVar(&fname, "f", "test_3_000_000.csv", "CSV file")
+	flag.IntVar(&concurrency, "c", 16, "concurrency")
 	flag.Parse()
-	fmt.Print(strings.Join(flag.Args(), "\n"))
-	if *filename == "REQUIRED" {
-		return
-	}
-
-	start := time.Now()
-	//d := NewDispatcher()
-	//
-	//      CSV File Open
-	//
-	csvfile, err := os.Open(*filename)
+	fp, err := os.Open(fname)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatalln(err)
 	}
+  // -----------------------------------------------------------------
+  // 速度優先のプラン
+  // 汎用的に利用する場合は、コメント下記ブロックをコメント内と入れ替えること
+  // --------------------------- ここから -----------------------------
+  task := []chan string{}
+	res := []map[string]int{}
+	var wg sync.WaitGroup
+	for i := 0; i < concurrency; i++ {
+		ch := make(chan string, 1000)
+		task = append(task, ch)
+		m := map[string]int{}
+		res = append(res, m)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for s := range ch {
+				m[s]++
+  // --------------------------- ここまで -----------------------------
+  /*
+  --------------------------------------------------------------------
+  --   Generic Plan
+  ------------------------------ ここから -----------------------------
 	defer csvfile.Close()
 
 	reader := csv.NewReader(csvfile)
@@ -73,42 +69,39 @@ func main() {
 					panic(err)
 				}
 				records = append(records, record)
+  ------------------------------ ここまで ----------------------------- */
 			}
-			// バルクレコードをworkerへdispatch
-			jobCh <- records
+		}()
+	}
+	begin := time.Now()
+	reader := bufio.NewScanner(fp)
+	i := 0
+	for reader.Scan() {
+		b := reader.Bytes()
+		start := bytes.IndexByte(b, ',')
+		if start < 0 {
+			continue
 		}
-	}()
-	go func() {
-		var wg sync.WaitGroup
-		for job := range jobCh {
-			workerCh <- true
-			wg.Add(1)
-			m := map[string]int{}
-			go func(v [][]string) {
-				defer func() { <-workerCh }()
-				defer wg.Done()
-				wordMap := processData(v)
-				for mk, mv := range wordMap {
-					m[mk] += mv
-				}
-				sinkCh <- m
-			}(job)
-		}
-		fmt.Println("quit")
-		wg.Wait()
-		close(sinkCh)
-	}()
-	resMap := map[string]int{}
-	for m := range sinkCh {
-		for k, v := range m {
-			resMap[k] += v
+		start += 2
+		offset := bytes.IndexByte(b[start:], ',') - 1
+		name := string(b[start : start+offset])
+		task[i%concurrency] <- name
+		i++
+	}
+	for i := 0; i < concurrency; i++ {
+		close(task[i])
+	}
+	wg.Wait()
+	m := map[string]int{}
+	for _, r := range res {
+		for k, v := range r {
+			m[k] += v
 		}
 	}
-
-	// 集計結果をarray化してソートする
+	resultTime := time.Since(begin)
 
 	results := []Entry{}
-	for k, v := range resMap {
+	for k, v := range m {
 		e := Entry{k, v}
 		results = append(results, e)
 	}
@@ -122,8 +115,7 @@ func main() {
 		fmt.Println(results[i])
 	}
 
-	resuleTime := fmt.Sprintf("\n%2fs", time.Since(start).Seconds())
-	fmt.Println(resuleTime)
+	fmt.Printf("\n%s\n", resultTime)
 }
 
 type Entry struct {
