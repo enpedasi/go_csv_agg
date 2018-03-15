@@ -22,11 +22,12 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	begin := time.Now()
   // -----------------------------------------------------------------
   // 速度優先のプラン
   // 汎用的に利用する場合は、コメント下記ブロックをコメント内と入れ替えること
   // --------------------------- ここから -----------------------------
-  task := []chan string{}
+	task := []chan string{}
 	res := []map[string]int{}
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
@@ -73,7 +74,6 @@ func main() {
 			}
 		}()
 	}
-	begin := time.Now()
 	reader := bufio.NewScanner(fp)
 	i := 0
 	for reader.Scan() {
