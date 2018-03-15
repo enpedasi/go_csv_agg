@@ -22,7 +22,11 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	task := []chan string{}
+  // -----------------------------------------------------------------
+  // 速度優先のプラン
+  // 汎用的に利用する場合は、コメント下記ブロックをコメント内と入れ替えること
+  // --------------------------- ここから -----------------------------
+  task := []chan string{}
 	res := []map[string]int{}
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
@@ -35,6 +39,37 @@ func main() {
 			defer wg.Done()
 			for s := range ch {
 				m[s]++
+  // --------------------------- ここまで -----------------------------
+  /*
+  --------------------------------------------------------------------
+  --   Generic Plan
+  ------------------------------ ここから -----------------------------
+	defer csvfile.Close()
+
+	reader := csv.NewReader(csvfile)
+	reader.FieldsPerRecord = -1 // CSVの列数が足りない行を無視する
+
+	jobCh := make(chan [][]string, maxQueues)
+	workerCh := make(chan bool, *numChannels)
+	sinkCh := make(chan map[string]int, *numChannels)
+	//quitChan := make(chan bool)
+	go func() {
+		defer close(jobCh)
+		running := true
+		for running {
+			records := make([][]string, 0, bulkCount)
+			// バルク単位でCSVを読み込む
+			for bi := 0; bi < bulkCount; bi++ {
+				record, err := reader.Read()
+				if err == io.EOF {
+					running = false
+					break
+				} else if err != nil {
+					fmt.Println("file read error : ", err)
+					panic(err)
+				}
+				records = append(records, record)
+  ------------------------------ ここまで ----------------------------- */
 			}
 		}()
 	}
